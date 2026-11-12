@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CocinaRouteImport } from './routes/cocina'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricasRouteImport } from './routes/metricas'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const CocinaRoute = CocinaRouteImport.update({
   path: '/cocina',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MetricasRoute = MetricasRouteImport.update({
   id: '/metricas',
   path: '/metricas',
@@ -32,30 +38,34 @@ const MetricasRoute = MetricasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cocina': typeof CocinaRoute
+  '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cocina': typeof CocinaRoute
+  '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cocina': typeof CocinaRoute
+  '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cocina' | '/metricas'
+  fullPaths: '/' | '/cocina' | '/login' | '/metricas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cocina' | '/metricas'
-  id: '__root__' | '/' | '/cocina' | '/metricas'
+  to: '/' | '/cocina' | '/login' | '/metricas'
+  id: '__root__' | '/' | '/cocina' | '/login' | '/metricas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CocinaRoute: typeof CocinaRoute
+  LoginRoute: typeof LoginRoute
   MetricasRoute: typeof MetricasRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CocinaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/metricas': {
       id: '/metricas'
       path: '/metricas'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CocinaRoute: CocinaRoute,
+  LoginRoute: LoginRoute,
   MetricasRoute: MetricasRoute,
 }
 export const routeTree = rootRouteImport

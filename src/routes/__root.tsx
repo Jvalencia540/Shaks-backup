@@ -1,9 +1,19 @@
 import { useEffect as useEff, type ReactNode } from "react";
-import { Link, Outlet, createRootRouteWithContext, useRouter, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  createRootRouteWithContext,
+  useRouter,
+  useRouterState,
+  HeadContent,
+  Scripts,
+} from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider, canAccess, useAuth } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -96,6 +106,9 @@ const NAV = [
 ] as const;
 
 function Header() {
+  const { rol, nombre, signOut } = useAuth();
+  const nav = NAV.filter((n) => canAccess(n.to, rol));
+
   return (
     <header className="sticky top-0 z-10 border-b-4 border-primary bg-card shadow-sm">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -103,8 +116,8 @@ function Header() {
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-2xl text-primary-foreground">🍔</span>
           <span className="font-display text-3xl tracking-tight text-primary">SHAKS</span>
         </Link>
-        <nav className="flex gap-2">
-          {NAV.map((n) => (
+        <nav className="flex flex-wrap items-center gap-2">
+          {nav.map((n) => (
             <Link
               key={n.to}
               to={n.to}
@@ -116,9 +129,70 @@ function Header() {
               {n.label}
             </Link>
           ))}
+          <span className="hidden flex-col items-end px-2 leading-tight md:flex">
+            <span className="max-w-40 truncate text-sm font-bold text-foreground">{nombre}</span>
+            <span className="text-xs font-semibold uppercase text-muted-foreground">
+              {rol === "admin" ? "Administrador" : "Personal"}
+            </span>
+          </span>
+          <button
+            onClick={() => signOut()}
+            className="rounded-xl border-2 border-border px-4 py-2.5 text-base font-bold text-foreground transition-colors hover:bg-secondary sm:text-lg"
+          >
+            Salir
+          </button>
         </nav>
       </div>
     </header>
+  );
+}
+
+function FullScreenMessage({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center text-lg text-muted-foreground">{children}</div>
+    </div>
+  );
+}
+
+// Decide qué ve el usuario según su sesión y su rol.
+function AuthGate() {
+  const { session, rol, loading, signOut } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLogin = pathname === "/login";
+
+  if (loading) {
+    return <FullScreenMessage>Cargando…</FullScreenMessage>;
+  }
+
+  if (!session) {
+    return isLogin ? <Outlet /> : <Navigate to="/login" replace />;
+  }
+
+  if (!rol) {
+    return (
+      <FullScreenMessage>
+        <p className="font-bold text-foreground">Su usuario no tiene un rol asignado.</p>
+        <p className="mt-2">Pida al administrador que le asigne el rol de personal o de administrador.</p>
+        <button
+          onClick={() => signOut()}
+          className="mt-6 rounded-xl bg-primary px-6 py-3 text-lg font-bold text-primary-foreground"
+        >
+          Salir
+        </button>
+      </FullScreenMessage>
+    );
+  }
+
+  if (isLogin || !canAccess(pathname, rol)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <>
+      <Header />
+      <Outlet />
+    </>
   );
 }
 
@@ -127,10 +201,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background">
-        <Header />
-        <Outlet />
-      </div>
+      <AuthProvider>
+        <div className="min-h-screen bg-background">
+          <AuthGate />
+        </div>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

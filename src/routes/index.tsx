@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MENU, addOrder, formatCOP, getOrders, type OrderItem } from "@/lib/shaks-store";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,32 +44,26 @@ function CajaPage() {
     });
   };
 
-const send = async () => {
-  if (!beeper || items.length === 0) return;
+  const send = async () => {
+    if (!beeper || items.length === 0) return;
 
-  await supabase.from('pedidos').insert([
-    {
-      beeper,
-      items,
-      total,
-      estado: 'pending',
-      created_at: new Date().toISOString(),
-    }
-  ]);
-useEffect(() => {
-  async function loadProductos() {
-    const { data } = await supabase.from('productos').select('*');
-    if (data && data.length > 0) {
-      // actualiza el estado del menú con los datos de Supabase
-    }
-  }
-  loadProductos();
-}, []);
-  
-  setCart(new Map());
-  setBeeper(null);
-  setSent(true);
-};
+    // Cocina lee los pedidos del store local; Supabase guarda el histórico.
+    addOrder(beeper, items);
+    const { error } = await supabase.from("pedidos").insert([
+      {
+        beeper,
+        items,
+        total,
+        estado: "pending",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    if (error) console.error("No se pudo guardar el pedido en Supabase:", error.message);
+
+    setCart(new Map());
+    setBeeper(null);
+    setSent(true);
+  };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
