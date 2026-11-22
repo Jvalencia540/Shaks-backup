@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { MENU, addOrder, formatCOP, getOrders, type OrderItem } from "@/lib/shaks-store";
+import { useQuery } from "@tanstack/react-query";
+import { addOrder, formatCOP, getOrders, type OrderItem } from "@/lib/shaks-store";
 import { supabase } from "@/lib/supabase";
+import { agruparPorCategoria, fetchProductos } from "@/lib/productos";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,6 +23,13 @@ function CajaPage() {
   const [cart, setCart] = useState<Map<string, number>>(new Map());
   const [beeper, setBeeper] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
+  const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
+
+  const productosQuery = useQuery({ queryKey: ["productos"], queryFn: fetchProductos, staleTime: 5 * 60_000 });
+  const productos = productosQuery.data ?? [];
+  const categorias = useMemo(() => agruparPorCategoria(productos), [productos]);
+  const categoria = categorias.find((c) => c.nombre === categoriaActiva) ?? categorias[0];
+  const precios = useMemo(() => new Map(productos.map((p) => [p.nombre, p.precio])), [productos]);
 
   const occupiedBeepers = useMemo(
     () => new Set(getOrders().filter((o) => o.status !== "delivered").map((o) => o.beeper)),
@@ -28,11 +37,8 @@ function CajaPage() {
   );
 
   const items: OrderItem[] = [...cart.entries()]
-    .filter(([, q]) => q > 0)
-    .map(([name, qty]) => {
-      const m = MENU.find((x) => x.name === name)!;
-      return { name, qty, price: m.price };
-    });
+    .filter(([name, q]) => q > 0 && precios.has(name))
+    .map(([name, qty]) => ({ name, qty, price: precios.get(name)! }));
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   const changeQty = (name: string, delta: number) => {
@@ -78,31 +84,74 @@ function CajaPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Menú */}
-        <section aria-label="Menú">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {MENU.map((m) => {
-              const qty = cart.get(m.name) ?? 0;
-              return (
-                <button
-                  key={m.name}
-                  onClick={() => changeQty(m.name, 1)}
-                  className={`relative min-h-28 rounded-2xl border-4 p-4 text-left shadow-sm transition-transform active:scale-95 ${
-                    qty > 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"
-                  }`}
-                >
-                  <span className="block text-lg font-bold leading-tight sm:text-xl">{m.name}</span>
-                  <span className={`mt-1 block text-base font-semibold ${qty > 0 ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
-                    {formatCOP(m.price)}
-                  </span>
-                  {qty > 0 && (
-                    <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-gold text-lg font-extrabold text-gold-foreground">
-                      {qty}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <section aria-label="Menú" className="min-w-0">
+          {productosQuery.isPending ? (
+            <p className="rounded-2xl bg-secondary px-5 py-6 text-lg text-muted-foreground">Cargando el menú…</p>
+          ) : productosQuery.isError ? (
+            <div className="rounded-2xl bg-destructive px-5 py-4 text-destructive-foreground">
+              <p className="text-lg font-bold">No se pudo cargar el menú.</p>
+              <button
+                onClick={() => productosQuery.refetch()}
+                className="mt-3 rounded-xl bg-card px-4 py-2 text-base font-bold text-foreground"
+              >
+                Intentar de nuevo
+              </button>
+            </div>
+          ) : categorias.length === 0 ? (
+            <p className="rounded-2xl bg-secondary px-5 py-6 text-lg text-muted-foreground">El menú está vacío.</p>
+          ) : (
+            <>
+              <div role="tablist" aria-label="Categorías del menú" className="flex flex-wrap gap-2">
+                {categorias.map((c) => {
+                  const active = c.nombre === categoria?.nombre;
+                  const enPedido = c.productos.reduce((s, p) => s + (cart.get(p.nombre) ?? 0), 0);
+                  return (
+                    <button
+                      key={c.nombre}
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setCategoriaActiva(c.nombre)}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-base font-bold transition-colors ${
+                        active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                      }`}
+                    >
+                      {c.nombre}
+                      {enPedido > 0 && (
+                        <span className="grid h-6 min-w-6 place-items-center rounded-full bg-gold px-1.5 text-sm font-extrabold text-gold-foreground">
+                          {enPedido}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div role="tabpanel" aria-label={categoria?.nombre} className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {categoria?.productos.map((p) => {
+                  const qty = cart.get(p.nombre) ?? 0;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => changeQty(p.nombre, 1)}
+                      className={`relative min-h-28 rounded-2xl border-4 p-4 text-left shadow-sm transition-transform active:scale-95 ${
+                        qty > 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"
+                      }`}
+                    >
+                      <span className={`block text-lg font-bold leading-tight sm:text-xl ${qty > 0 ? "pr-9" : ""}`}>{p.nombre}</span>
+                      <span className={`mt-1 block text-base font-semibold ${qty > 0 ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
+                        {formatCOP(p.precio)}
+                      </span>
+                      {qty > 0 && (
+                        <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-gold text-lg font-extrabold text-gold-foreground">
+                          {qty}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Resumen + beeper + enviar */}
