@@ -1,6 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { formatCOP, getOrders, markReady, markDelivered, type Order } from "@/lib/shaks-store";
+import { describeOptions, formatCOP, getOrders, markReady, markDelivered, type Order, type OrderItem } from "@/lib/shaks-store";
+
+// Un producto del pedido con sus opciones y comentario, para que cocina no los pase por alto.
+function ItemLine({ item }: { item: OrderItem }) {
+  return (
+    <li>
+      <span>
+        {item.qty}× {item.name}
+      </span>
+      {item.opciones && item.opciones.length > 0 && (
+        <span className="block text-base font-bold text-primary">{describeOptions(item.opciones)}</span>
+      )}
+      {item.comentario && (
+        <span className="mt-0.5 block rounded-lg bg-gold px-2 py-1 text-base font-bold text-gold-foreground">
+          📝 {item.comentario}
+        </span>
+      )}
+    </li>
+  );
+}
 
 export const Route = createFileRoute("/cocina")({
   head: () => ({
@@ -84,11 +103,9 @@ function CocinaPage() {
                       ⏱ {min} min
                     </span>
                   </div>
-                  <ul className="space-y-1 text-lg font-semibold">
-                    {o.items.map((i) => (
-                      <li key={i.name}>
-                        {i.qty}× {i.name}
-                      </li>
+                  <ul className="space-y-2 text-lg font-semibold">
+                    {o.items.map((i, idx) => (
+                      <ItemLine key={idx} item={i} />
                     ))}
                   </ul>
                   <p className="text-xl font-extrabold text-primary">{formatCOP(o.total)}</p>
@@ -119,11 +136,9 @@ function CocinaPage() {
                   </span>
                   <span className="animate-pulse text-xl font-extrabold text-accent">🔔 ¡SUENA!</span>
                 </div>
-                <ul className="space-y-1 text-lg font-semibold">
-                  {o.items.map((i) => (
-                    <li key={i.name}>
-                      {i.qty}× {i.name}
-                    </li>
+                <ul className="space-y-2 text-lg font-semibold">
+                  {o.items.map((i, idx) => (
+                    <ItemLine key={idx} item={i} />
                   ))}
                 </ul>
                 <button

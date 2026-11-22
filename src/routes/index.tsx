@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { addOrder, formatCOP, getOrders, type OrderItem } from "@/lib/shaks-store";
+import { addOrder, describeOptions, formatCOP, getOrders } from "@/lib/shaks-store";
 import { supabase } from "@/lib/supabase";
-import { agruparPorCategoria, fetchProductos } from "@/lib/productos";
+import { agruparPorCategoria, fetchProductos, type Producto } from "@/lib/productos";
+import { addLine, changeLineQty, setLineComment, toOrderItems, type CartLine } from "@/lib/cart";
+import { ProductoOpcionesDialog } from "@/components/producto-opciones-dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,34 +22,35 @@ export const Route = createFileRoute("/")({
 });
 
 function CajaPage() {
-  const [cart, setCart] = useState<Map<string, number>>(new Map());
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [beeper, setBeeper] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
+  const [conOpciones, setConOpciones] = useState<Producto | null>(null);
+  const [editandoNota, setEditandoNota] = useState<string | null>(null);
 
   const productosQuery = useQuery({ queryKey: ["productos"], queryFn: fetchProductos, staleTime: 5 * 60_000 });
   const productos = productosQuery.data ?? [];
   const categorias = useMemo(() => agruparPorCategoria(productos), [productos]);
   const categoria = categorias.find((c) => c.nombre === categoriaActiva) ?? categorias[0];
-  const precios = useMemo(() => new Map(productos.map((p) => [p.nombre, p.precio])), [productos]);
-
   const occupiedBeepers = useMemo(
     () => new Set(getOrders().filter((o) => o.status !== "delivered").map((o) => o.beeper)),
     [sent]
   );
 
-  const items: OrderItem[] = [...cart.entries()]
-    .filter(([name, q]) => q > 0 && precios.has(name))
-    .map(([name, qty]) => ({ name, qty, price: precios.get(name)! }));
+  const items = toOrderItems(cart);
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const qtyDe = (nombre: string) => cart.reduce((s, l) => s + (l.name === nombre ? l.qty : 0), 0);
 
-  const changeQty = (name: string, delta: number) => {
+  const update = (fn: (lines: CartLine[]) => CartLine[]) => {
     setSent(false);
-    setCart((prev) => {
-      const next = new Map(prev);
-      next.set(name, Math.max(0, (next.get(name) ?? 0) + delta));
-      return next;
-    });
+    setCart(fn);
+  };
+
+  // Un producto con opciones abre el diálogo; uno sin opciones se suma directo.
+  const tocarProducto = (p: Producto) => {
+    if (p.opciones.length > 0) setConOpciones(p);
+    else update((lines) => addLine(lines, { name: p.nombre, price: p.precio }));
   };
 
   const send = async () => {
@@ -66,7 +69,8 @@ function CajaPage() {
     ]);
     if (error) console.error("No se pudo guardar el pedido en Supabase:", error.message);
 
-    setCart(new Map());
+    setCart([]);
+    setEditandoNota(null);
     setBeeper(null);
     setSent(true);
   };
@@ -104,7 +108,7 @@ function CajaPage() {
               <div role="tablist" aria-label="Categorías del menú" className="flex flex-wrap gap-2">
                 {categorias.map((c) => {
                   const active = c.nombre === categoria?.nombre;
-                  const enPedido = c.productos.reduce((s, p) => s + (cart.get(p.nombre) ?? 0), 0);
+                  const enPedido = c.productos.reduce((s, p) => s + qtyDe(p.nombre), 0);
                   return (
                     <button
                       key={c.nombre}
@@ -128,11 +132,11 @@ function CajaPage() {
 
               <div role="tabpanel" aria-label={categoria?.nombre} className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {categoria?.productos.map((p) => {
-                  const qty = cart.get(p.nombre) ?? 0;
+                  const qty = qtyDe(p.nombre);
                   return (
                     <button
                       key={p.id}
-                      onClick={() => changeQty(p.nombre, 1)}
+                      onClick={() => tocarProducto(p)}
                       className={`relative min-h-28 rounded-2xl border-4 p-4 text-left shadow-sm transition-transform active:scale-95 ${
                         qty > 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"
                       }`}
@@ -141,6 +145,11 @@ function CajaPage() {
                       <span className={`mt-1 block text-base font-semibold ${qty > 0 ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
                         {formatCOP(p.precio)}
                       </span>
+                      {p.opciones.length > 0 && (
+                        <span className={`mt-1 block text-sm font-bold ${qty > 0 ? "text-primary-foreground/90" : "text-primary"}`}>
+                          Elegir {p.opciones.map((o) => o.nombre.toLowerCase()).join(" y ")}
+                        </span>
+                      )}
                       {qty > 0 && (
                         <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-gold text-lg font-extrabold text-gold-foreground">
                           {qty}
@@ -159,25 +168,54 @@ function CajaPage() {
           <h2 className="font-display text-2xl text-foreground">Pedido actual</h2>
 
           <div className="min-h-16 rounded-xl bg-secondary p-3">
-            {items.length === 0 ? (
+            {cart.length === 0 ? (
               <p className="text-base text-muted-foreground">Sin ítems todavía…</p>
             ) : (
-              <ul className="space-y-1">
-                {items.map((i) => (
-                  <li key={i.name} className="flex items-center justify-between gap-2 text-base font-semibold">
-                    <span className="min-w-0 truncate">
-                      {i.qty}× {i.name}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {formatCOP(i.price * i.qty)}
+              <ul className="divide-y divide-border">
+                {cart.map((l) => (
+                  <li key={l.key} className="py-2 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-2 text-base font-semibold">
+                      <span className="min-w-0">
+                        {l.qty}× {l.name}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {formatCOP(l.price * l.qty)}
+                        <button
+                          aria-label={`Quitar uno de ${l.name}`}
+                          onClick={() => update((lines) => changeLineQty(lines, l.key, -1))}
+                          className="grid h-8 w-8 place-items-center rounded-lg bg-destructive text-lg font-bold text-destructive-foreground active:scale-95"
+                        >
+                          −
+                        </button>
+                        <button
+                          aria-label={`Agregar otro de ${l.name}`}
+                          onClick={() => update((lines) => changeLineQty(lines, l.key, 1))}
+                          className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-lg font-bold text-primary-foreground active:scale-95"
+                        >
+                          +
+                        </button>
+                      </span>
+                    </div>
+                    {l.opciones.length > 0 && (
+                      <p className="text-sm font-semibold text-primary">{describeOptions(l.opciones)}</p>
+                    )}
+                    {editandoNota === l.key ? (
+                      <NotaEditor
+                        inicial={l.comentario}
+                        onGuardar={(texto) => {
+                          update((lines) => setLineComment(lines, l.key, texto));
+                          setEditandoNota(null);
+                        }}
+                        onCancelar={() => setEditandoNota(null)}
+                      />
+                    ) : (
                       <button
-                        aria-label={`Quitar ${i.name}`}
-                        onClick={() => changeQty(i.name, -1)}
-                        className="grid h-8 w-8 place-items-center rounded-lg bg-destructive text-lg font-bold text-destructive-foreground active:scale-95"
+                        onClick={() => setEditandoNota(l.key)}
+                        className="mt-1 block text-left text-sm font-semibold text-muted-foreground underline decoration-dotted underline-offset-2"
                       >
-                        −
+                        {l.comentario ? `📝 ${l.comentario}` : "+ Agregar comentario"}
                       </button>
-                    </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -224,6 +262,54 @@ function CajaPage() {
           </button>
         </aside>
       </div>
+
+      <ProductoOpcionesDialog
+        producto={conOpciones}
+        onClose={() => setConOpciones(null)}
+        onAdd={({ opciones, comentario, qty }) => {
+          const p = conOpciones;
+          if (p) update((lines) => addLine(lines, { name: p.nombre, price: p.precio, opciones, comentario }, qty));
+          setConOpciones(null);
+        }}
+      />
     </main>
+  );
+}
+
+function NotaEditor({
+  inicial,
+  onGuardar,
+  onCancelar,
+}: {
+  inicial: string;
+  onGuardar: (texto: string) => void;
+  onCancelar: () => void;
+}) {
+  const [texto, setTexto] = useState(inicial);
+  return (
+    <form
+      className="mt-1.5 flex flex-col gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onGuardar(texto);
+      }}
+    >
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        maxLength={200}
+        placeholder="Ej.: sin cebolla, bien asada…"
+        className="h-10 rounded-lg border-2 border-input bg-background px-3 text-base outline-none focus:border-primary"
+      />
+      <div className="flex gap-2">
+        <button type="submit" className="rounded-lg bg-primary px-3 py-1.5 text-sm font-bold text-primary-foreground">
+          Guardar
+        </button>
+        <button type="button" onClick={onCancelar} className="rounded-lg bg-card px-3 py-1.5 text-sm font-bold text-foreground">
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }

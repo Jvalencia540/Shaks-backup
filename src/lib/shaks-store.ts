@@ -1,9 +1,21 @@
 // Store compartido de pedidos de Shaks (localStorage + sincronización entre pestañas)
 
+export interface OrderItemOption {
+  nombre: string; // p. ej. "Salsa"
+  valor: string; // p. ej. "BBQ"
+}
+
 export interface OrderItem {
   name: string;
   qty: number;
   price: number;
+  opciones?: OrderItemOption[];
+  comentario?: string;
+}
+
+// Texto corto de las opciones elegidas: "Salsa: BBQ · Shot: Vodka".
+export function describeOptions(opciones?: OrderItemOption[]): string {
+  return (opciones ?? []).map((o) => `${o.nombre}: ${o.valor}`).join(" · ");
 }
 
 export interface Order {

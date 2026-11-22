@@ -1,10 +1,17 @@
 import { supabase } from "@/lib/supabase";
 
+// Una elección obligatoria al agregar el producto, p. ej. Salsa: BBQ | MM | Combinadas.
+export interface Opcion {
+  nombre: string;
+  valores: string[];
+}
+
 export interface Producto {
   id: string;
   nombre: string;
   precio: number;
   categoria: string;
+  opciones: Opcion[];
 }
 
 export interface Categoria {
@@ -31,11 +38,15 @@ const ORDEN_CATEGORIAS = [
 export async function fetchProductos(): Promise<Producto[]> {
   const { data, error } = await supabase
     .from("productos")
-    .select("id, nombre, precio, categoria")
+    .select("id, nombre, precio, categoria, opciones")
     .order("precio", { ascending: true })
     .order("nombre", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((p) => ({ ...p, precio: Number(p.precio) }));
+  return (data ?? []).map((p) => ({
+    ...p,
+    precio: Number(p.precio),
+    opciones: Array.isArray(p.opciones) ? (p.opciones as Opcion[]) : [],
+  }));
 }
 
 export function agruparPorCategoria(productos: Producto[]): Categoria[] {
