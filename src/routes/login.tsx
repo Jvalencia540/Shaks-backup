@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
+import { BotonTema } from "@/lib/tema";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -30,12 +31,17 @@ function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+    <main className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      <BotonTema className="absolute right-4 top-4" />
       <div className="w-full max-w-md rounded-3xl border-4 border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-3xl text-primary-foreground">🍔</span>
+          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-3xl text-primary-foreground">
+            🍔
+          </span>
           <h1 className="mt-3 font-display text-4xl tracking-tight text-primary">SHAKS</h1>
-          <p className="mt-1 text-lg text-muted-foreground">Ingrese con su cuenta de personal o de administrador.</p>
+          <p className="mt-1 text-lg text-muted-foreground">
+            Ingrese con su cuenta de personal o de administrador.
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
@@ -64,7 +70,10 @@ function LoginPage() {
           </label>
 
           {error && (
-            <p role="alert" className="rounded-xl bg-destructive px-4 py-3 text-base font-bold text-destructive-foreground">
+            <p
+              role="alert"
+              className="rounded-xl bg-destructive px-4 py-3 text-base font-bold text-destructive-foreground"
+            >
               {error}
             </p>
           )}

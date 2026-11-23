@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, canAccess, useAuth } from "../lib/auth";
+import { BotonTema, TEMA_SCRIPT } from "../lib/tema";
 
 function NotFoundComponent() {
   return (
@@ -97,8 +98,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Aplica el modo oscuro guardado antes de pintar, para que no parpadee. */}
+        <script dangerouslySetInnerHTML={{ __html: TEMA_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -147,6 +150,7 @@ function Header() {
               {rol === "admin" ? "Administrador" : "Personal"}
             </span>
           </span>
+          <BotonTema />
           <button
             onClick={() => signOut()}
             className="rounded-xl border-2 border-border px-4 py-2.5 text-base font-bold text-foreground transition-colors hover:bg-secondary sm:text-lg"
