@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CocinaRouteImport } from './routes/cocina'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricasRouteImport } from './routes/metricas'
+import { Route as CobrarIdRouteImport } from './routes/cobrar.$id'
+import { Route as PedidoIdRouteImport } from './routes/pedido.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +36,32 @@ const MetricasRoute = MetricasRouteImport.update({
   path: '/metricas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CobrarIdRoute = CobrarIdRouteImport.update({
+  id: '/cobrar/$id',
+  path: '/cobrar/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PedidoIdRoute = PedidoIdRouteImport.update({
+  id: '/pedido/$id',
+  path: '/pedido/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cocina': typeof CocinaRoute
   '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
+  '/cobrar/$id': typeof CobrarIdRoute
+  '/pedido/$id': typeof PedidoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cocina': typeof CocinaRoute
   '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
+  '/cobrar/$id': typeof CobrarIdRoute
+  '/pedido/$id': typeof PedidoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +69,23 @@ export interface FileRoutesById {
   '/cocina': typeof CocinaRoute
   '/login': typeof LoginRoute
   '/metricas': typeof MetricasRoute
+  '/cobrar/$id': typeof CobrarIdRoute
+  '/pedido/$id': typeof PedidoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cocina' | '/login' | '/metricas'
+  fullPaths:
+    '/' | '/cocina' | '/login' | '/metricas' | '/cobrar/$id' | '/pedido/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cocina' | '/login' | '/metricas'
-  id: '__root__' | '/' | '/cocina' | '/login' | '/metricas'
+  to: '/' | '/cocina' | '/login' | '/metricas' | '/cobrar/$id' | '/pedido/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/cocina'
+    | '/login'
+    | '/metricas'
+    | '/cobrar/$id'
+    | '/pedido/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +93,8 @@ export interface RootRouteChildren {
   CocinaRoute: typeof CocinaRoute
   LoginRoute: typeof LoginRoute
   MetricasRoute: typeof MetricasRoute
+  CobrarIdRoute: typeof CobrarIdRoute
+  PedidoIdRoute: typeof PedidoIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +127,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetricasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cobrar/$id': {
+      id: '/cobrar/$id'
+      path: '/cobrar/$id'
+      fullPath: '/cobrar/$id'
+      preLoaderRoute: typeof CobrarIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pedido/$id': {
+      id: '/pedido/$id'
+      path: '/pedido/$id'
+      fullPath: '/pedido/$id'
+      preLoaderRoute: typeof PedidoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +149,8 @@ const rootRouteChildren: RootRouteChildren = {
   CocinaRoute: CocinaRoute,
   LoginRoute: LoginRoute,
   MetricasRoute: MetricasRoute,
+  CobrarIdRoute: CobrarIdRoute,
+  PedidoIdRoute: PedidoIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

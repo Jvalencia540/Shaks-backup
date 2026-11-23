@@ -62,9 +62,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Shaks — Pedidos rápidos para tu restaurante" },
-      { name: "description", content: "Shaks: toma pedidos en caja, asigna beeper, envía a cocina y avisa al cliente cuando esté listo." },
+      { name: "description", content: "Shaks: mapa de mesas, pedidos para llevar y domicilios, cocina en tiempo real y cuentas divididas por persona." },
       { property: "og:title", content: "Shaks — Pedidos rápidos para tu restaurante" },
-      { property: "og:description", content: "Toma pedidos, asigna beeper y notifica al cliente. Sin gritos, sin desorden." },
+      { property: "og:description", content: "Pedidos por mesa, cocina al día y cuentas divididas. Sin gritos, sin desorden." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -100,7 +100,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 const NAV = [
-  { to: "/", label: "🧾 Caja" },
+  { to: "/", label: "🍽️ Mesas" },
   { to: "/cocina", label: "🍳 Cocina" },
   { to: "/metricas", label: "📊 Métricas" },
 ] as const;

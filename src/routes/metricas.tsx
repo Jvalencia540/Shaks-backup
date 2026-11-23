@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,13 +9,17 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatCOP, getOrders, type Order } from "@/lib/shaks-store";
+import { formatCOP } from "@/lib/shaks-store";
+import { etiquetaCuenta, fetchCuentasDelDia, totalItems } from "@/lib/servicio";
 
 export const Route = createFileRoute("/metricas")({
   head: () => ({
     meta: [
       { title: "Métricas de Hoy — Shaks" },
-      { name: "description", content: "Resumen del día: total de ventas en pesos y pedidos entregados." },
+      {
+        name: "description",
+        content: "Resumen del día: total de ventas en pesos y pedidos entregados.",
+      },
       { property: "og:title", content: "Métricas de Hoy — Shaks" },
       { property: "og:description", content: "Ventas del día y pedidos entregados de un vistazo." },
       { property: "og:type", content: "website" },
@@ -75,56 +80,71 @@ const compactCOP = new Intl.NumberFormat("es-CO", {
 });
 
 function MetricasPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
   const [period, setPeriod] = useState<Period>("today");
-  useEffect(() => {
-    const refresh = () => setOrders(getOrders());
-    refresh();
-    window.addEventListener("shaks-update", refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener("shaks-update", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
+  const cuentasQ = useQuery({
+    queryKey: ["cuentas-dia"],
+    queryFn: fetchCuentasDelDia,
+    refetchInterval: 15_000,
+  });
+  const orders = cuentasQ.data ?? [];
 
-  const delivered = orders.filter((o) => o.status === "delivered");
-  const ventasDia = orders.reduce((s, o) => s + o.total, 0);
-  const ventasEntregadas = delivered.reduce((s, o) => s + o.total, 0);
-  const activos = orders.filter((o) => o.status !== "delivered").length;
+  // "Entregadas" = cuentas cobradas y cerradas; "activas" = cuentas abiertas.
+  const delivered = orders.filter((o) => o.estado === "cerrada");
+  const ventasDia = orders.reduce((s, o) => s + totalItems(o.items), 0);
+  const ventasEntregadas = delivered.reduce(
+    (s, o) => s + o.pagos.reduce((p, x) => p + x.monto, 0),
+    0,
+  );
+  const activos = orders.filter((o) => o.estado === "abierta").length;
   const chartData = period === "today" ? TODAY_SALES : MONTH_SALES;
   const chartTotal =
     period === "today"
       ? TODAY_SALES.reduce((sum, point) => sum + point.sales, 0)
-      : MONTH_SALES[MONTH_SALES.length - 1]?.sales ?? 0;
+      : (MONTH_SALES[MONTH_SALES.length - 1]?.sales ?? 0);
   const peak =
     period === "today"
-      ? TODAY_SALES.reduce(
-          (best, point) => (point.sales > best.sales ? point : best),
-          { label: "", sales: 0 },
-        )
+      ? TODAY_SALES.reduce((best, point) => (point.sales > best.sales ? point : best), {
+          label: "",
+          sales: 0,
+        })
       : undefined;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
       <h1 className="font-display text-3xl text-foreground sm:text-4xl">Panel de Administración</h1>
       <p className="mt-1 text-lg text-muted-foreground">
-        {new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        {new Date().toLocaleDateString("es-CO", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}
       </p>
 
-      <section aria-labelledby="sales-chart-title" className="mt-6 border-y-4 border-primary bg-card py-6 shadow-sm">
+      <section
+        aria-labelledby="sales-chart-title"
+        className="mt-6 border-y-4 border-primary bg-card py-6 shadow-sm"
+      >
         <div className="flex flex-col gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
           <div>
             <p className="text-sm font-extrabold uppercase text-primary">Panel de ventas</p>
-            <h2 id="sales-chart-title" className="mt-1 font-display text-2xl text-foreground sm:text-3xl">
+            <h2
+              id="sales-chart-title"
+              className="mt-1 font-display text-2xl text-foreground sm:text-3xl"
+            >
               {period === "today" ? "Ventas por hora" : "Ventas acumuladas del mes"}
             </h2>
             <p className="mt-1 text-base text-muted-foreground">
-              {period === "today" ? "Movimiento de caja durante la jornada" : "Crecimiento diario durante septiembre"}
+              {period === "today"
+                ? "Movimiento de caja durante la jornada"
+                : "Crecimiento diario durante septiembre"}
             </p>
           </div>
 
-          <div aria-label="Periodo de la gráfica" className="grid grid-cols-2 rounded-lg border-2 border-primary bg-secondary p-1">
+          <div
+            aria-label="Periodo de la gráfica"
+            className="grid grid-cols-2 rounded-lg border-2 border-primary bg-secondary p-1"
+          >
             <Button
               type="button"
               variant={period === "today" ? "default" : "ghost"}
@@ -152,14 +172,18 @@ function MetricasPage() {
               <p className="text-sm font-bold text-muted-foreground">
                 {period === "today" ? "Ventas de hoy" : "Acumulado del mes"}
               </p>
-              <p className="mt-1 text-2xl font-extrabold text-primary sm:text-3xl">{formatCOP(chartTotal)}</p>
+              <p className="mt-1 text-2xl font-extrabold text-primary sm:text-3xl">
+                {formatCOP(chartTotal)}
+              </p>
             </div>
             <div className="rounded-lg border-2 border-border bg-background p-4">
               <p className="text-sm font-bold text-muted-foreground">
                 {period === "today" ? "Hora más fuerte" : "Promedio diario"}
               </p>
               <p className="mt-1 text-xl font-extrabold text-foreground sm:text-2xl">
-                {period === "today" ? peak?.label : formatCOP(Math.round(chartTotal / MONTH_SALES.length))}
+                {period === "today"
+                  ? peak?.label
+                  : formatCOP(Math.round(chartTotal / MONTH_SALES.length))}
               </p>
               {period === "today" && peak ? (
                 <p className="mt-1 text-sm font-bold text-primary">{formatCOP(peak.sales)}</p>
@@ -171,7 +195,13 @@ function MetricasPage() {
             {period === "today" ? (
               <BarChart accessibilityLayer data={chartData} margin={{ left: 4, right: 12, top: 8 }}>
                 <CartesianGrid vertical={false} strokeDasharray="4 4" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={1} minTickGap={8} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  interval={1}
+                  minTickGap={8}
+                />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
@@ -180,7 +210,16 @@ function MetricasPage() {
                 />
                 <ChartTooltip
                   cursor={false}
-                  content={<ChartTooltipContent hideLabel formatter={(value) => <span className="font-bold text-foreground">{formatCOP(Number(value))}</span>} />}
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      formatter={(value) => (
+                        <span className="font-bold text-foreground">
+                          {formatCOP(Number(value))}
+                        </span>
+                      )}
+                    />
+                  }
                 />
                 <Bar
                   dataKey="sales"
@@ -191,9 +230,19 @@ function MetricasPage() {
                 />
               </BarChart>
             ) : (
-              <LineChart accessibilityLayer data={chartData} margin={{ left: 4, right: 18, top: 12 }}>
+              <LineChart
+                accessibilityLayer
+                data={chartData}
+                margin={{ left: 4, right: 18, top: 12 }}
+              >
                 <CartesianGrid vertical={false} strokeDasharray="4 4" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={2} minTickGap={12} />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  interval={2}
+                  minTickGap={12}
+                />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
@@ -202,7 +251,16 @@ function MetricasPage() {
                 />
                 <ChartTooltip
                   cursor={false}
-                  content={<ChartTooltipContent hideLabel formatter={(value) => <span className="font-bold text-foreground">{formatCOP(Number(value))}</span>} />}
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      formatter={(value) => (
+                        <span className="font-bold text-foreground">
+                          {formatCOP(Number(value))}
+                        </span>
+                      )}
+                    />
+                  }
                 />
                 <Line
                   type="monotone"
@@ -225,31 +283,31 @@ function MetricasPage() {
           <p className="mt-2 text-4xl font-extrabold text-primary">{formatCOP(ventasDia)}</p>
         </div>
         <div className="rounded-2xl border-4 border-accent bg-card p-6 shadow-md">
-          <p className="text-lg font-bold text-muted-foreground">🤝 Pedidos entregados</p>
+          <p className="text-lg font-bold text-muted-foreground">🤝 Cuentas cobradas</p>
           <p className="mt-2 text-4xl font-extrabold text-accent">{delivered.length}</p>
         </div>
         <div className="rounded-2xl border-4 border-gold bg-card p-6 shadow-md">
-          <p className="text-lg font-bold text-muted-foreground">🔥 Pedidos activos</p>
+          <p className="text-lg font-bold text-muted-foreground">🔥 Cuentas abiertas</p>
           <p className="mt-2 text-4xl font-extrabold text-gold">{activos}</p>
         </div>
         <div className="rounded-2xl border-4 border-border bg-card p-6 shadow-md">
-          <p className="text-lg font-bold text-muted-foreground">🧾 Total de pedidos</p>
+          <p className="text-lg font-bold text-muted-foreground">🧾 Cuentas del día</p>
           <p className="mt-2 text-4xl font-extrabold text-foreground">{orders.length}</p>
         </div>
       </div>
 
-      <section aria-label="Pedidos entregados" className="mt-8">
-        <h2 className="mb-3 font-display text-2xl text-foreground">Entregados hoy</h2>
+      <section aria-label="Cuentas cobradas" className="mt-8">
+        <h2 className="mb-3 font-display text-2xl text-foreground">Cobradas hoy</h2>
         {delivered.length === 0 ? (
           <p className="rounded-2xl bg-secondary p-6 text-xl font-semibold text-muted-foreground">
-            Aún no se ha entregado ningún pedido hoy.
+            Aún no se ha cobrado ninguna cuenta hoy.
           </p>
         ) : (
           <div className="overflow-hidden rounded-2xl border-4 border-border bg-card shadow-sm">
             <table className="w-full text-left text-lg">
               <thead className="bg-secondary text-base font-bold text-secondary-foreground">
                 <tr>
-                  <th className="px-4 py-3">Beeper</th>
+                  <th className="px-4 py-3">Cuenta</th>
                   <th className="px-4 py-3">Detalle</th>
                   <th className="px-4 py-3 text-right">Total</th>
                 </tr>
@@ -257,18 +315,24 @@ function MetricasPage() {
               <tbody>
                 {delivered.map((o) => (
                   <tr key={o.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-extrabold text-primary">#{o.beeper}</td>
-                    <td className="px-4 py-3">{o.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</td>
-                    <td className="px-4 py-3 text-right font-bold">{formatCOP(o.total)}</td>
+                    <td className="px-4 py-3 font-extrabold text-primary">{etiquetaCuenta(o)}</td>
+                    <td className="px-4 py-3">
+                      {o.items.map((i) => `${i.qty}× ${i.nombre}`).join(", ")}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold">
+                      {formatCOP(totalItems(o.items))}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t-4 border-primary bg-secondary">
                 <tr>
                   <td colSpan={2} className="px-4 py-3 text-xl font-extrabold">
-                    Total entregado
+                    Total cobrado
                   </td>
-                  <td className="px-4 py-3 text-right text-xl font-extrabold text-primary">{formatCOP(ventasEntregadas)}</td>
+                  <td className="px-4 py-3 text-right text-xl font-extrabold text-primary">
+                    {formatCOP(ventasEntregadas)}
+                  </td>
                 </tr>
               </tfoot>
             </table>

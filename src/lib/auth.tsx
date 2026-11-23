@@ -8,12 +8,16 @@ export type Rol = "admin" | "personal";
 // (por ejemplo /login) son públicas.
 export const ROUTE_ROLES: Record<string, Rol[]> = {
   "/": ["admin", "personal"],
+  "/pedido": ["admin", "personal"],
+  "/cobrar": ["admin", "personal"],
   "/cocina": ["admin", "personal"],
   "/metricas": ["admin"],
 };
 
 export function canAccess(path: string, rol: Rol | null): boolean {
-  const allowed = ROUTE_ROLES[path];
+  // /pedido/abc → "/pedido": las rutas con parámetros usan la regla de su sección.
+  const seccion = path === "/" ? "/" : `/${path.split("/")[1] ?? ""}`;
+  const allowed = ROUTE_ROLES[seccion];
   if (!allowed) return true;
   return rol !== null && allowed.includes(rol);
 }
