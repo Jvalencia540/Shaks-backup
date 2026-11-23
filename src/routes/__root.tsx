@@ -22,7 +22,10 @@ function NotFoundComponent() {
         <h1 className="font-display text-7xl text-foreground">404</h1>
         <p className="mt-2 text-sm text-muted-foreground">La página que buscas no existe.</p>
         <div className="mt-6">
-          <Link to="/" className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-lg font-bold text-primary-foreground">
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-lg font-bold text-primary-foreground"
+          >
             Volver a Caja
           </Link>
         </div>
@@ -62,9 +65,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Shaks — Pedidos rápidos para tu restaurante" },
-      { name: "description", content: "Shaks: mapa de mesas, pedidos para llevar y domicilios, cocina en tiempo real y cuentas divididas por persona." },
+      {
+        name: "description",
+        content:
+          "Shaks: mapa de mesas, pedidos para llevar y domicilios, cocina en tiempo real y cuentas divididas por persona.",
+      },
       { property: "og:title", content: "Shaks — Pedidos rápidos para tu restaurante" },
-      { property: "og:description", content: "Pedidos por mesa, cocina al día y cuentas divididas. Sin gritos, sin desorden." },
+      {
+        property: "og:description",
+        content: "Pedidos por mesa, cocina al día y cuentas divididas. Sin gritos, sin desorden.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -110,10 +120,12 @@ function Header() {
   const nav = NAV.filter((n) => canAccess(n.to, rol));
 
   return (
-    <header className="sticky top-0 z-10 border-b-4 border-primary bg-card shadow-sm">
+    <header className="sticky top-0 z-10 border-b-4 border-primary bg-card shadow-sm print:hidden">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <Link to="/" className="flex items-center gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-2xl text-primary-foreground">🍔</span>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary text-2xl text-primary-foreground">
+            🍔
+          </span>
           <span className="font-display text-3xl tracking-tight text-primary">SHAKS</span>
         </Link>
         <nav className="flex flex-wrap items-center gap-2">
@@ -173,7 +185,9 @@ function AuthGate() {
     return (
       <FullScreenMessage>
         <p className="font-bold text-foreground">Su usuario no tiene un rol asignado.</p>
-        <p className="mt-2">Pida al administrador que le asigne el rol de personal o de administrador.</p>
+        <p className="mt-2">
+          Pida al administrador que le asigne el rol de personal o de administrador.
+        </p>
         <button
           onClick={() => signOut()}
           className="mt-6 rounded-xl bg-primary px-6 py-3 text-lg font-bold text-primary-foreground"

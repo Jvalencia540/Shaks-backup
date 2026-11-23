@@ -10,6 +10,7 @@ export const ROUTE_ROLES: Record<string, Rol[]> = {
   "/": ["admin", "personal"],
   "/pedido": ["admin", "personal"],
   "/cobrar": ["admin", "personal"],
+  "/recibo": ["admin", "personal"],
   "/cocina": ["admin", "personal"],
   "/metricas": ["admin"],
 };

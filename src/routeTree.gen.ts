@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MetricasRouteImport } from './routes/metricas'
 import { Route as CobrarIdRouteImport } from './routes/cobrar.$id'
 import { Route as PedidoIdRouteImport } from './routes/pedido.$id'
+import { Route as ReciboIdRouteImport } from './routes/recibo.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const PedidoIdRoute = PedidoIdRouteImport.update({
   path: '/pedido/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReciboIdRoute = ReciboIdRouteImport.update({
+  id: '/recibo/$id',
+  path: '/recibo/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/metricas': typeof MetricasRoute
   '/cobrar/$id': typeof CobrarIdRoute
   '/pedido/$id': typeof PedidoIdRoute
+  '/recibo/$id': typeof ReciboIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/metricas': typeof MetricasRoute
   '/cobrar/$id': typeof CobrarIdRoute
   '/pedido/$id': typeof PedidoIdRoute
+  '/recibo/$id': typeof ReciboIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,27 @@ export interface FileRoutesById {
   '/metricas': typeof MetricasRoute
   '/cobrar/$id': typeof CobrarIdRoute
   '/pedido/$id': typeof PedidoIdRoute
+  '/recibo/$id': typeof ReciboIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/cocina' | '/login' | '/metricas' | '/cobrar/$id' | '/pedido/$id'
+    | '/'
+    | '/cocina'
+    | '/login'
+    | '/metricas'
+    | '/cobrar/$id'
+    | '/pedido/$id'
+    | '/recibo/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cocina' | '/login' | '/metricas' | '/cobrar/$id' | '/pedido/$id'
+  to:
+    | '/'
+    | '/cocina'
+    | '/login'
+    | '/metricas'
+    | '/cobrar/$id'
+    | '/pedido/$id'
+    | '/recibo/$id'
   id:
     | '__root__'
     | '/'
@@ -86,6 +108,7 @@ export interface FileRouteTypes {
     | '/metricas'
     | '/cobrar/$id'
     | '/pedido/$id'
+    | '/recibo/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,6 +118,7 @@ export interface RootRouteChildren {
   MetricasRoute: typeof MetricasRoute
   CobrarIdRoute: typeof CobrarIdRoute
   PedidoIdRoute: typeof PedidoIdRoute
+  ReciboIdRoute: typeof ReciboIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PedidoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recibo/$id': {
+      id: '/recibo/$id'
+      path: '/recibo/$id'
+      fullPath: '/recibo/$id'
+      preLoaderRoute: typeof ReciboIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetricasRoute: MetricasRoute,
   CobrarIdRoute: CobrarIdRoute,
   PedidoIdRoute: PedidoIdRoute,
+  ReciboIdRoute: ReciboIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

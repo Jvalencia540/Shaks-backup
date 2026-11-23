@@ -112,12 +112,22 @@ function CobrarPage() {
           <p className="mt-1 text-lg">
             {cuenta.tipo === "mesa" ? "La mesa quedó libre." : "El pedido salió de la lista."}
           </p>
-          <Link
-            to="/"
-            className="mt-4 inline-block rounded-xl bg-card px-5 py-3 text-lg font-bold text-foreground"
-          >
-            Volver a mesas
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              to="/recibo/$id"
+              params={{ id }}
+              search={{ auto: 1 }}
+              className="inline-block rounded-xl bg-card px-5 py-3 text-lg font-bold text-foreground"
+            >
+              🖨️ Imprimir recibo completo
+            </Link>
+            <Link
+              to="/"
+              className="inline-block rounded-xl border-2 border-accent-foreground px-5 py-3 text-lg font-bold"
+            >
+              Volver a mesas
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -307,6 +317,14 @@ function CobrarPage() {
                       </li>
                     ))}
                   </ul>
+                  <Link
+                    to="/recibo/$id"
+                    params={{ id }}
+                    search={{ pago: p.id, auto: 1 }}
+                    className="mt-3 inline-block rounded-lg border-2 border-border bg-card px-3 py-1.5 text-sm font-bold text-foreground"
+                  >
+                    🖨️ Imprimir recibo de {p.persona}
+                  </Link>
                 </div>
               );
             })}

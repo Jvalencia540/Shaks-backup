@@ -9,6 +9,7 @@ import {
   type Mesa,
   type NuevaCuenta,
 } from "@/lib/servicio";
+import { EditarCuentaDialog } from "@/components/pedido/editar-cuenta-dialog";
 
 const input =
   "h-12 w-full rounded-xl border-2 border-input bg-background px-3 text-base outline-none focus:border-primary";
@@ -178,6 +179,7 @@ export function ResumenCuenta({
   onAnular: () => void;
   anulando: boolean;
 }) {
+  const [editando, setEditando] = useState(false);
   const total = totalItems(cuenta.items);
   const pagado = cuenta.pagos.reduce((s, p) => s + p.monto, 0);
   const listos = cuenta.items.filter((i) => i.estado === "listo").reduce((s, i) => s + i.qty, 0);
@@ -261,6 +263,25 @@ export function ResumenCuenta({
       >
         💵 Cobrar / dividir cuenta
       </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          to="/recibo/$id"
+          params={{ id: cuenta.id }}
+          search={{ auto: 1 }}
+          disabled={sinItems}
+          className={`${btnSecundario} grid place-items-center ${sinItems ? "pointer-events-none opacity-40" : ""}`}
+        >
+          🖨️ Imprimir
+        </Link>
+        <button
+          onClick={() => setEditando(true)}
+          disabled={sinItems && cuenta.tipo !== "mesa"}
+          className={btnSecundario}
+        >
+          {sinItems ? "🔀 Cambiar mesa" : "✏️ Editar"}
+        </button>
+      </div>
+      <EditarCuentaDialog cuenta={cuenta} open={editando} onClose={() => setEditando(false)} />
       {sinItems && (
         <button
           onClick={onAnular}

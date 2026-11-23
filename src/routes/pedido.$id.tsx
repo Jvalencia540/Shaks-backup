@@ -15,6 +15,7 @@ import {
 import { MenuProductos } from "@/components/pedido/menu-productos";
 import { Carrito } from "@/components/pedido/carrito";
 import { ProductoOpcionesDialog } from "@/components/producto-opciones-dialog";
+import { EditarCuentaDialog } from "@/components/pedido/editar-cuenta-dialog";
 
 export const Route = createFileRoute("/pedido/$id")({
   head: () => ({ meta: [{ title: "Pedido — Shaks" }] }),
@@ -33,6 +34,7 @@ function PedidoPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [conOpciones, setConOpciones] = useState<Producto | null>(null);
   const [enviado, setEnviado] = useState(false);
+  const [editando, setEditando] = useState(false);
 
   const cuentaQ = useQuery({
     queryKey: ["cuenta", id],
@@ -112,16 +114,47 @@ function PedidoPage() {
               .join(" · ")}
           </p>
         </div>
-        {cuenta.items.length > 0 && abierta && (
-          <Link
-            to="/cobrar/$id"
-            params={{ id }}
-            className="rounded-xl border-2 border-border bg-card px-5 py-3 text-lg font-bold text-foreground"
-          >
-            💵 Cobrar
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {abierta && cuenta.items.length > 0 && (
+            <button
+              onClick={() => setEditando(true)}
+              className="rounded-xl border-2 border-border bg-card px-4 py-3 text-lg font-bold text-foreground"
+            >
+              ✏️ Editar mesa
+            </button>
+          )}
+          {abierta && cuenta.items.length === 0 && cuenta.tipo === "mesa" && (
+            <button
+              onClick={() => setEditando(true)}
+              className="rounded-xl border-2 border-border bg-card px-4 py-3 text-lg font-bold text-foreground"
+            >
+              🔀 Cambiar de mesa
+            </button>
+          )}
+          {cuenta.items.length > 0 && (
+            <Link
+              to="/recibo/$id"
+              params={{ id }}
+              search={{ auto: 1 }}
+              className="rounded-xl border-2 border-border bg-card px-4 py-3 text-lg font-bold text-foreground"
+            >
+              🖨️ Imprimir cuenta
+            </Link>
+          )}
+          {cuenta.items.length > 0 && abierta && (
+            <Link
+              to="/cobrar/$id"
+              params={{ id }}
+              className="rounded-xl bg-primary px-5 py-3 text-lg font-bold text-primary-foreground"
+            >
+              💵 Cobrar
+            </Link>
+          )}
+        </div>
       </div>
+      {abierta && (
+        <EditarCuentaDialog cuenta={cuenta} open={editando} onClose={() => setEditando(false)} />
+      )}
 
       {!abierta && (
         <p className="mt-4 rounded-2xl bg-secondary px-5 py-4 text-lg font-bold text-muted-foreground">

@@ -352,6 +352,121 @@ export async function registrarPago(
   return { cerrada: false };
 }
 
+// ---------- Editar una cuenta abierta ----------
+
+// Si ya no queda nada por pagar (y hay algo pagado), la cuenta se cierra.
+async function cerrarSiPagada(cuentaId: string): Promise<boolean> {
+  const items = check(
+    await supabase.from("cuenta_items").select("pago_id").eq("cuenta_id", cuentaId),
+  ) as { pago_id: string | null }[];
+  if (items.length > 0 && items.every((i) => i.pago_id)) {
+    await cerrarCuenta(cuentaId);
+    return true;
+  }
+  return false;
+}
+
+// Los clientes se cambian de mesa: la cuenta completa pasa a otra mesa libre.
+export async function cambiarMesa(cuentaId: string, nuevaMesaId: string): Promise<void> {
+  const { error } = await supabase
+    .from("cuentas")
+    .update({ mesa_id: nuevaMesaId })
+    .eq("id", cuentaId);
+  if (error) {
+    if (error.code === "23505") throw new Error("Esa mesa ya está ocupada.");
+    throw new Error(error.message);
+  }
+}
+
+// Quita unidades de productos que no se han pagado (pedido por error, cliente cambió de idea).
+export async function eliminarItems(
+  cuenta: Cuenta,
+  seleccion: SeleccionPago[],
+): Promise<{ cerrada: boolean }> {
+  const porId = new Map(cuenta.items.map((i) => [i.id, i]));
+  const validas = seleccion.filter((s) => {
+    const it = porId.get(s.itemId);
+    return it && !it.pago_id && s.qty > 0 && s.qty <= it.qty;
+  });
+  if (validas.length === 0) throw new Error("Seleccione al menos un producto.");
+  for (const v of validas) {
+    const it = porId.get(v.itemId)!;
+    if (v.qty === it.qty) check(await supabase.from("cuenta_items").delete().eq("id", it.id));
+    else
+      check(
+        await supabase
+          .from("cuenta_items")
+          .update({ qty: it.qty - v.qty })
+          .eq("id", it.id),
+      );
+  }
+  return { cerrada: await cerrarSiPagada(cuenta.id) };
+}
+
+export type DestinoMover = { cuentaId: string } | { mesaId: string; mesero: string | null };
+
+// Pasa productos (no pagados) a otra cuenta: a una mesa ya abierta o a una
+// mesa libre, que se abre en el momento. Conservan su estado de cocina.
+export async function moverItems(
+  origen: Cuenta,
+  destino: DestinoMover,
+  seleccion: SeleccionPago[],
+): Promise<{ destinoId: string; cerrada: boolean }> {
+  const porId = new Map(origen.items.map((i) => [i.id, i]));
+  const validas = seleccion.filter((s) => {
+    const it = porId.get(s.itemId);
+    return it && !it.pago_id && s.qty > 0 && s.qty <= it.qty;
+  });
+  if (validas.length === 0) throw new Error("Seleccione al menos un producto.");
+
+  const destinoId =
+    "cuentaId" in destino
+      ? destino.cuentaId
+      : await abrirCuenta({ tipo: "mesa", mesa_id: destino.mesaId, mesero: destino.mesero });
+  if (destinoId === origen.id) throw new Error("Elija una mesa distinta.");
+
+  const prev = check(
+    await supabase
+      .from("cuenta_items")
+      .select("ronda")
+      .eq("cuenta_id", destinoId)
+      .order("ronda", { ascending: false })
+      .limit(1),
+  ) as { ronda: number }[];
+  const ronda = (prev[0]?.ronda ?? 0) + 1;
+
+  for (const v of validas) {
+    const it = porId.get(v.itemId)!;
+    if (v.qty === it.qty) {
+      check(
+        await supabase.from("cuenta_items").update({ cuenta_id: destinoId, ronda }).eq("id", it.id),
+      );
+    } else {
+      check(
+        await supabase
+          .from("cuenta_items")
+          .update({ qty: it.qty - v.qty })
+          .eq("id", it.id),
+      );
+      check(
+        await supabase.from("cuenta_items").insert({
+          cuenta_id: destinoId,
+          ronda,
+          nombre: it.nombre,
+          precio: it.precio,
+          qty: v.qty,
+          opciones: it.opciones,
+          comentario: it.comentario,
+          estado: it.estado,
+          created_at: it.created_at,
+          listo_at: it.listo_at,
+        }),
+      );
+    }
+  }
+  return { destinoId, cerrada: await cerrarSiPagada(origen.id) };
+}
+
 // ---------- Métricas ----------
 
 // Cuentas creadas desde el inicio del día (cerradas o abiertas, no anuladas).
